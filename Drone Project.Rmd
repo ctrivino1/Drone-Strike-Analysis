@@ -1,0 +1,392 @@
+---
+title: "Drone Strikes"
+author: "Chris Trivino"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output:
+  html_document:  
+    keep_md: true
+    toc: true
+    toc_float: true
+    code_folding: hide
+    fig_height: 6
+    fig_width: 12
+    fig_align: 'center'
+---
+
+```{r, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+```{r load_libraries, include=FALSE}
+# Use this R-Chunk to load all your libraries!
+#install.packages("tidyverse") # run this line once in console to get package
+library(tidyverse)
+library(nycflights13)
+library(knitr)
+library(gt)
+library(readr)
+library(lubridate)
+library(stringr)
+library(grid)
+library(gridExtra)
+library(downloader)
+library(haven)
+library(foreign)
+library(textreadr)
+library(readxl)
+library(directlabels)
+library(hrbrthemes)
+library(grid)
+library(ggpubr)
+library(ggplot2)
+library(rlist)
+library(viridis)
+library(plotly)
+library(DT)
+library(cowplot)
+library(leaflet)
+library(leaflet.providers)
+library(pander)
+
+```
+
+```{r load_data}
+# Use this R-Chunk to import all your datasets!
+
+
+Afghanistan <- read_excel("C:/Users/Admin/Downloads/newData.xlsx") %>% 
+  rename(Strike_type = `Type of attack`) %>% 
+  mutate(date =`Date (MM-DD-YYYY)`) %>% 
+  separate(`Date (MM-DD-YYYY)`, sep = "-", into = c("month","day","year")) %>% select(-...14,-...15)
+
+
+
+Somalia <- read_excel("C:/Users/Admin/Downloads/newData.xlsx", sheet = "Somalia") %>% 
+  rename(Strike_type = `Strike type`) %>% 
+  mutate(date =`Date (MM-DD-YYYY)`) %>% 
+  separate(`Date (MM-DD-YYYY)`, sep = "-", into = c("month","day","year")) %>% 
+  select(-...29,-...31)
+  
+
+
+Yemen <- read_excel("C:/Users/Admin/Downloads/newData.xlsx", sheet = "Yemen") %>% 
+  rename(Strike_type = `Type of attack`) %>% 
+    mutate(date = `Date (MM-DD-YYYY)`) %>% 
+  separate(`Date (MM-DD-YYYY)`, sep = "-", into = c("month","day","year")) %>% select(-...30)
+
+
+Pakistan <- read_excel("C:/Users/Admin/Downloads/newData.xlsx", sheet = "Pakistan") %>% 
+  mutate(Strike_type = "Drone") %>% 
+  mutate(date = `Date (MM-DD-YYYY)`) %>% 
+  separate(`Date (MM-DD-YYYY)`, sep = "-", into = c("month","day","year")) %>% 
+  select(- ...13,- ...14, -...24 )
+```
+
+## Data Wrangling
+```{r}
+
+Afghanistan <- purrr::map(Afghanistan, as.character)
+
+Somalia <- purrr::map(Somalia, as.character)
+
+Pakistan <- purrr::map(Pakistan, as.character) 
+  
+
+
+Yemen <- purrr::map(Yemen, as.character)
+
+
+data <- bind_rows(Afghanistan, Somalia, Yemen, Pakistan)
+
+drone_data <- data
+
+ds <- drone_data %>% 
+  filter(str_detect(Strike_type, "rone"))
+
+drone_strikes1 <- ds %>% 
+  mutate(`Most Specific Lat/Long` = ifelse(`Most Specific Lat/Long` == "Unknown", `Lat/Long`, `Most Specific Lat/Long` ))
+```
+
+
+```{r}
+Af <- Afghanistan %>% data.frame(Afghanistan) 
+  
+
+# mean of civillians killed per strike Afghanistan
+
+Afghanistan1 <- as.data.frame(Afghanistan)
+
+
+af_casulaties <- Afghanistan1 %>%
+  filter(str_detect(Strike_type, "rone")) %>% 
+  group_by(Country) %>% 
+  summarise(mean_Civ_casualties = mean(as.numeric(Maximum.civilians.reported.killed)), mean_childen_casualties = mean(as.numeric(Maximum.children.reported.killed)), total_civ_deaths = sum(as.numeric(Maximum.civilians.reported.killed)), total_child_deaths = sum(as.numeric(Maximum.children.reported.killed)))
+
+
+
+# af casualty per year
+
+af_cas_yr <- Afghanistan1 %>%
+  filter(str_detect(Strike_type, "rone")) %>% 
+  group_by(Country,year) %>% 
+  summarise(Civ_casualties = sum(as.numeric(Maximum.civilians.reported.killed)), childen_casualties = sum(as.numeric(Maximum.children.reported.killed)))
+         
+
+## Somalia Drone strike statisctics
+
+Somalia1 <- as.data.frame(Somalia) %>% 
+  filter(str_detect(Strike_type, "rone"))
+
+S_casualties <- Somalia1 %>% 
+  group_by(Country) %>% 
+  summarise(mean_Civ_casualties = mean(as.numeric(Maximum.civilians.killed)), mean_childen_casualties = mean(as.numeric(Maximum.children.killed)), total_civ_deaths = sum(as.numeric(Maximum.civilians.killed)), total_child_deaths = sum(as.numeric(as.numeric(Maximum.children.killed)))) 
+
+
+# somalia casualties per year
+
+S_cas_yr <- Somalia1 %>% 
+  group_by(Country,year) %>% 
+  summarise(Civ_casualties = sum(as.numeric(Maximum.civilians.killed)), childen_casualties = sum(as.numeric(Maximum.children.killed)))
+
+
+
+## pakistan drone statistics
+Pakistan1 <- as.data.frame(Pakistan) %>% 
+filter(str_detect(Strike_type, "rone"))
+
+
+P_casualties <- Pakistan1 %>% 
+  group_by(Country) %>% 
+  summarise(mean_Civ_casualties = mean(as.numeric(Maximum.civilians.reported.killed)), mean_childen_casualties = mean(as.numeric(Pakistan1$Maximum.children.reported.killed)), total_civ_deaths = sum(as.numeric(Maximum.civilians.reported.killed)),total_child_deaths = sum(as.numeric(as.numeric(Maximum.children.reported.killed))))
+
+
+
+# Pak casualties per yer
+P_casualties_year <- Pakistan1 %>% 
+  group_by(Country,year) %>% 
+  summarise(Civ_casualties = sum(as.numeric(Maximum.civilians.reported.killed)), childen_casualties = sum(as.numeric(Pakistan1$Maximum.children.reported.killed)))
+
+
+
+
+# Yemen Drone statistics
+Yemen1 <- as.data.frame(Yemen) %>% 
+  filter(str_detect(Strike_type, "rone"))
+
+Y_casualites <- Yemen1 %>% 
+  group_by(Country) %>% 
+  summarise(mean_Civ_casualties = mean(as.numeric(Maximum.civilians.reported.killed)), mean_childen_casualties = mean(as.numeric(Maximum.children.reported.killed)), total_civ_deaths = sum(as.numeric(Maximum.civilians.reported.killed)), total_child_deaths = sum(as.numeric(as.numeric(Maximum.children.reported.killed))))
+
+
+# yemen casualties per year
+
+Y_cas_yr <- Yemen1 %>% 
+  group_by(Country,year) %>% 
+  summarise(Civ_casualties = sum(as.numeric(Maximum.civilians.reported.killed)), childen_casualties = sum(as.numeric(Maximum.children.reported.killed)))
+
+
+# total casualties per strike per country visualization
+
+t_casualties <- bind_rows(af_casulaties, S_casualties, Y_casualites, P_casualties)
+
+cas_per_yr <- bind_rows(af_cas_yr, S_cas_yr, Y_cas_yr, P_casualties_year)
+
+setZoom = function(map, zoom, options = list()) {
+  view = list(zoom, options)
+  dispatch(map,
+    "setZoom",
+    leaflet = {
+      map$x$setZoom = view
+      map$x$fitBounds = NULL
+      map
+    },
+    leaflet_proxy = {
+      invokeRemote(map, "setZoom", view)
+      map
+    }
+    )
+}
+
+
+
+
+```
+
+## Background
+
+Between 2010 and 2020 the Bureau of Investigative Journalism collected data on US strikes in Afghanistan, Pakistan, Somalia and Yemen from government, military and intelligence officials, and from credible media, academic and other sources, including Bureau researchers. Here in the data set, the Bureau presents quantitative data on strikes and casualty estimates in spreadsheets, and qualitative data in narrative timelines.
+
+
+This analysis is based upon the statistics the Bureau have documented at this present time. The data has been filtered to confirmed drone strikes or possible drone strikes, it includes other kinds of military air strikes but the focus is on drone strikes. 
+
+Source: https://dronewars.github.io/data/
+
+Source: https://WWW.investigates.com/stories/2017-01-01/drone-wars-the-full-data
+
+## Drone Strike per Presidency
+
+```{r tidy_data}
+# Use this R-Chunk to clean & wrangle your data!
+drone_strikes1 %>% 
+  mutate(Count = n()) %>%
+  ggplot(aes(x = President, y = ..count.. , fill = President)) +
+  geom_bar() + theme_bw() + facet_wrap(vars(Country),scales = "free_y") + geom_text(stat='count', aes(label=..count..), vjust=1, col = "black") + labs(title = "Number of Drone Strikes Per Country by Presidency", y = "Drone Strikes")
+```
+
+The bar charts shown shows the number of Drone Strikes for each presidential term in the data set. Obama's presidential term had more drone strikes than any of the other presidencies. 
+
+## (Interactive) Geographical map of Drone Strikes
+
+```{r}
+map_drone_strikes <- drone_strikes1 %>% 
+  mutate("Most_Specific_Lat/Long" = `Most Specific Lat/Long`) %>% 
+  separate(`Most Specific Lat/Long`, sep = ",", into = c("final_lat","final_lon")) %>% 
+  relocate(final_lat,final_lon) %>% 
+  filter(final_lat > 0 & final_lon > 0) %>% 
+  group_by(`Most Specific Location`) %>% 
+  mutate(Count = n())
+
+
+leaflet() %>% addTiles() %>% 
+  setView(lng = 55, lat = 42.5510, zoom = 3) %>% 
+  addProviderTiles(providers$Esri.NatGeoWorldMap) %>%
+  setZoom(zoom = .1) %>% 
+  addMarkers(data = map_drone_strikes,
+             lng = ~as.numeric(final_lon),
+             lat = ~as.numeric(final_lat),
+             label = ~paste(`Most Specific Location`, "=", Count, "Drone Strike(s)"),
+             clusterOptions =  markerClusterOptions()) %>% 
+  addRectangles(lng1 = 40.98105, -1.68325, lng2 = 51.13387, 12.02464, fillColor = "transparent") %>% # somalia
+  addRectangles(lng1 = 60.8742484882, 23.6919650335, lng2 = 77.8374507995, 37.1330309108, fillColor = "transparent") %>% #Pakistan
+  addRectangles(lng1 = 42.6048726743, 12.5859504257, lng2 = 53.1085726255, 19.0000033635, fillColor = "transparent")
+```
+
+This interactive map presents specific drone strike locations. Most notable is the Waziristan District in Pakistan. The district has over ninety drone strikes located in the area. (Some locations do not have updated landscapes and therefore, land features of drone strike area's may not appear when zoomed upon)
+
+
+
+## Locations with the most Drone Strikes
+
+```{r}
+area <- drone_strikes1 %>% 
+  group_by(`Most Specific Location`, Country) %>% 
+  summarise(Number_of_Strikes = n()) %>% 
+  rename("Location" = `Most Specific Location`) %>% 
+  filter(!Location %in% c("Unknown", "unknown")) %>% 
+  ungroup() %>% 
+  slice_max(Number_of_Strikes, n = 10)
+
+
+area %>% ggplot(aes(x =  fct_reorder(Location, Number_of_Strikes), y = Number_of_Strikes)) +
+  geom_col(fill =  "Orange") + geom_text(aes(label = Number_of_Strikes), vjust = -0.5, hjust=-.1)  +
+  labs(title = "Ten Most Targeted Locations", x ="Locations" , y ="Number of Strikes") + theme_bw() +
+  coord_flip()
+```
+
+The bar chart above shows the top ten locations that have the most drone strikes. Bayda, Yemen has had the most drone strikes.
+
+## Drone Strikes Per Country
+
+```{r}
+drone_strikes1 %>% ggplot(aes(x = fct_inorder(Country),  fill = Country)) +
+  geom_bar( stat = "count") + geom_text(stat='count', aes(label=..count..), vjust=-.3,col = "black") +
+  labs(title = "Total Drone Strikes per country", x = "Counry", y ="Drone Strikes") + theme_bw()
+```
+
+From this bar chart it is clear that Pakistan has had the most drone strikes happen than any of the other countries. The strikes in Pakistan are under the command of the CIA rather than the military. Unlike in Yemen and Somalia where the military and CIA work together.
+
+## Drone Strikes per Year
+
+```{r}
+
+drone_strikes1 <- drone_strikes1 %>% mutate(Year = as.numeric(year))
+
+c <- drone_strikes1 %>%
+  group_by(year) %>% 
+  mutate(count = n()) %>% 
+  ggplot(aes(x = Year, y = count, col = Country)) +
+  geom_point() + 
+  geom_line() +
+  facet_wrap(~Country)  + labs(title = "(Interactive) Drone strikes per year", x = "Country", y = "Drone Strikes")  + theme_bw() 
+
+ggplotly(c)
+```
+
+From the graphs above you can hover your mouse over the points and see how many drone strikes were done each year. During Obama's presidency the drone strikes in Pakistan drastically increased. Yemen also saw an increase in drone strikes, while Somalia has had a decrease in the number of drone strikes.
+
+
+
+# Casualty Statistics 
+
+##Civilian Casualties per Country
+```{r}
+plot1 <- t_casualties %>% ggplot(aes(x = fct_reorder(Country, total_civ_deaths), y = total_civ_deaths, fill = Country)) +
+  geom_col() + geom_text(aes(x = Country, y = total_civ_deaths + 100 , label = round(total_civ_deaths),vjust=1),col = "black") + theme_bw() + labs(title = "Total Civilian casualties from drone strikes per country", x = "Country", y = "Casualties")
+
+plot2 <- t_casualties %>% ggplot(aes(x = fct_reorder(Country, total_child_deaths), y = total_child_deaths, fill = Country)) +
+  geom_col() + geom_text(aes(x = Country, y = total_child_deaths + 100 , label = round(total_child_deaths),vjust=4.5),col = "black") + theme_bw() + labs(title = "Children casualties from drone strikes per country", x = "Country", y = "Casualties")
+
+grid.arrange(plot1,plot2)
+
+```
+
+These two bar charts show the total number of civilian casualties and children casualties in each country. The children casualties are accounted for in the total civilian casualties. From the data the most civilian casualties come from Pakistan and Yemen, which are the 2 countries that had the most drone strikes 
+
+
+
+
+##Civilian Casualties per Year
+
+```{r}
+cas_per_yr <- cas_per_yr %>% mutate(Year = as.numeric(year))
+
+p <- cas_per_yr %>% group_by(Year) %>% ggplot(aes(x = Year, y = Civ_casualties, col = Country)) +
+  geom_point() + 
+  geom_line()  + 
+  theme_ipsum() +
+  facet_wrap(~Country, scales = "free_y") + labs(title = "(Interactive) Civilian Casualties per Country", x = "Year", y = "Casualties") 
+
+
+ggplotly(p)
+```
+
+The plot above shows the different years of each country in the data set and how many casualties happened in a specific year. There was a significant increasing trend in Pakistan from 2007-2012. There was also a increase in casualties in Somalia where the highest rate was in 2017. While in Yemen the highest amount of casualties occurred in 2012
+
+## Average Casulaties per Strike
+
+```{r}
+
+table_t_cas <- t_casualties %>% 
+  rename("Civilian_casualties" = mean_Civ_casualties,  "Children_Casualties" =  mean_childen_casualties) %>% 
+  mutate("Civilian_casualties" = round(as.numeric(Civilian_casualties),2), Children_Casualties = round(as.numeric(Children_Casualties),2))
+datatable(table_t_cas)
+```
+
+The table above shows the average civilian and child deaths per drone strike. It also includes the total deaths of civilians and children.
+
+## Most Targeted groups (Afghanistan)
+
+```{r}
+Af %>%  group_by(Reported.target.group.) %>% 
+  rename(target_group = Reported.target.group.)%>% 
+  filter(!target_group %in% c("-", "Friendly fire", "Friendly Fire")) %>%
+  mutate(Count = n()) %>% 
+  ggplot(aes(x = fct_reorder(target_group, Count))) +
+  geom_bar(fill = "skyblue") +  geom_text(stat='count', aes(label=..count.., hjust=-.1),col = "black")+ coord_flip() +
+  labs(title = "Targeted Groups", x ="Targeted groups" , y ="Count") + theme_bw()
+```
+
+This chart shows the most targeted group that was included in the Afghanistan data-set. These were the most targeted group in general, not necessarily by only drone strikes.
+
+## Conclusions
+
+In conclusion the data above shows:
+
+* President Obama's administration had more drone strikes than any other presidency.
+* The top ten Locations where drone strikes have happened, most notably: Bayda, Yemen with 27 strikes
+* Pakistan has had the most drone strikes and the most civilian/children casualties out of the four countries.
+* There has been an overall increase in drone strikes in Pakistan and Yemen since 2002
+* There was a major spike in casualties in Pakistan and Yemen, while there has been a steady increase in Somalia.
+* Somalia has had a overall decrease in drone strikes since 2011
+* The casualty rate per strike in each country: most notable Pakistan's casualty rate of two civilians per strike.
+* The most targeted groups in Afghanistan, the top two which were the Taliban and ISIS terrorist groups.
